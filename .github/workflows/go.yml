@@ -1,0 +1,58 @@
+name: Go
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.17
+
+    - name: Build
+      run: go build -v ./cmd/usr-lib-apt-methods-oci
+
+#     - name: Test
+#       run: go test -v ./...
+
+    - name: Upload
+      uses: actions/upload-artifact@v3.0.0
+      with:
+        name: binary
+        # A file, directory or wildcard pattern that describes what to upload
+        path: usr-lib-apt-methods-oci
+        # The desired behavior if no files are found using the provided path
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download deb from build
+      uses: actions/download-artifact@v1
+      with:
+        name: binary
+
+    - name: Get File Name
+      id: get_filename
+      run: |
+        cd binary
+        echo "::set-output name=short_sha::`echo ${GITHUB_SHA} | cut -c1-8`"
+    - name: Create Release
+      id: create_release
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: apt-transport-oci-${{ steps.get_filename.outputs.short_sha }}
+        draft: true
+        files: binary/*
